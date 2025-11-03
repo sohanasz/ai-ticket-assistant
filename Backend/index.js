@@ -44,28 +44,24 @@ app.use(
 const userSocketMap = new Map();
 
 io.on("connection", (socket) => {
-  console.log("New connection happened", socket.id);
-
   const userId = socket.handshake.query.userID;
 
   // Mapping Socket Id with UserID from DB
-  if (!userSocketMap[userId]) {
-    userSocketMap[userId] = socket.id;
-  } else if (userSocketMap[userId]) {
-    const socketId = userSocketMap[userId];
-    const prevSocket = io.sockets.sockets.get(socketId);
-    console.log("REMAPPING SOCKET", socketId, "NEW ID", socket.id);
-    prevSocket.disconnect(true);
-    userSocketMap[socket.handshake.query.userID] = socket.id;
+  if (!userSocketMap.has(userId)) {
+    userSocketMap.set(userId, socket.id);
+  } else {
+    // Disconnect previous socket if exists
+    const prevSocketId = userSocketMap.get(userId);
+    const prevSocket = io.sockets.sockets.get(prevSocketId);
+    if (prevSocket) prevSocket.disconnect(true);
+
+    userSocketMap.set(userId, socket.id);
   }
 
-  console.log(userSocketMap, "ID ", socket.handshake.query.userID);
-
-  // Explict Disconnection Handling From User side or from network err
+  // Explicit disconnection handling
   socket.on("disconnect", () => {
-    console.log("DISCONN SOCKET", userSocketMap, userSocketMap[userId], userId);
-    if (userSocketMap[userId] === socket.id) {
-      userSocketMap[userId] = null;
+    if (userSocketMap.get(userId) === socket.id) {
+      userSocketMap.delete(userId);
     }
   });
 
