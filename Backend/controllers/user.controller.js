@@ -10,6 +10,7 @@ export const signup = async (req, res) => {
     const user = await User.create({ email, password: hashed, skills });
 
     //Fire inngest event
+    console.log("CHECK AUTH");
 
     await inngest.send({
       name: "user/signup",

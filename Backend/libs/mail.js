@@ -10,8 +10,8 @@ const sendMail = async (options) => {
     },
   });
 
-  const emailTextual = mailGenerator.generatePlaintext(options.mailgenContent);
-  const emailHtml = mailGenerator.generate(options.mailgenContent);
+  // const emailTextual = mailGenerator.generatePlaintext(options.mailgenContent);
+  // const emailHtml = mailGenerator.generate(options.mailgenContent);
 
   const transporter = nodemailer.createTransport({
     host: process.env.MAILTRAP_SMTP_HOST,
@@ -26,8 +26,8 @@ const sendMail = async (options) => {
     from: "helloworld@anyemail.com",
     to: options.email,
     subject: options.subject,
-    text: emailTextual,
-    html: emailHtml,
+    text: options.message,
+    // html: emailHtml,
   };
 
   try {

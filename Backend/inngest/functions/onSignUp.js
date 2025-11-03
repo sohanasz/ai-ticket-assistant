@@ -23,7 +23,7 @@ export const onUserSignup = inngest.createFunction(
             \n\n
             Thanks for signing up. We're glad to have you onboard!
             `;
-        await sendMail(user.email, subject, message);
+        await sendMail({ email: user.email, subject, message });
       });
 
       return { success: true };

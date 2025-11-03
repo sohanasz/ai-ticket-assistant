@@ -18,7 +18,7 @@ export const createTicket = async (req, res) => {
     await inngest.send({
       name: "ticket/created",
       data: {
-        ticketId: (await newTicket)._id.toString(),
+        ticketId: newTicket._id.toString(),
         title,
         description,
         createdBy: req.user._id.toString(),
@@ -37,9 +37,10 @@ export const createTicket = async (req, res) => {
 export const getTickets = async (req, res) => {
   try {
     const user = req.user;
+    console.log("TEST ROUTE", user);
     let tickets = [];
     if (user.role !== "user") {
-      tickets = Ticket.find({})
+      tickets = await Ticket.find({})
         .populate("assignedTo", ["email", "_id"])
         .sort({ createdAt: -1 });
     } else {
@@ -47,7 +48,9 @@ export const getTickets = async (req, res) => {
         .select("title description status createdAt")
         .sort({ createdAt: -1 });
     }
-    return res.status(200).json(tickets);
+    console.log(tickets, "TIK TIK");
+
+    return res.status(200).json({ tickets });
   } catch (error) {
     console.error("Error fetching tickets", error.message);
     return res.status(500).json({ message: "Internal Server Error" });
@@ -60,12 +63,12 @@ export const getTicket = async (req, res) => {
     let ticket;
 
     if (user.role !== "user") {
-      ticket = Ticket.findById(req.params.id).populate("assignedTo", [
+      ticket = await Ticket.findById(req.params.id).populate("assignedTo", [
         "email",
         "_id",
       ]);
     } else {
-      ticket = Ticket.findOne({
+      ticket = await Ticket.findOne({
         createdBy: user._id,
         _id: req.params.id,
       }).select("title description status createdAt");
@@ -74,7 +77,32 @@ export const getTicket = async (req, res) => {
     if (!ticket) {
       return res.status(404).json({ message: "Ticket not found" });
     }
-    return res.status(404).json({ ticket });
+    return res.status(200).json({ ticket });
+  } catch (error) {
+    console.error("Error fetching ticket", error.message);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const toggleTicketChat = async (req, res) => {
+  try {
+    const user = req.user;
+    const { id } = req.params;
+
+    const ticket = await Ticket.findOneAndUpdate(
+      {
+        assignedTo: user._id,
+        _id: req.params.id,
+      },
+      { $bit: { enableChat: { xor: 1 } } },
+      { new: true, select: "_id title enableChat" }
+    );
+
+    if (!ticket) {
+      return res.status(401).json({ message: "Unauthorized !  " });
+    }
+
+    return res.status(200).json({ message: "Chat Toggled Successfully" });
   } catch (error) {
     console.error("Error fetching ticket", error.message);
     return res.status(500).json({ message: "Internal Server Error" });

@@ -15,6 +15,10 @@ const ticketSchema = new mongoose.Schema({
   helpfulNotes: String,
   relatedSkills: [String],
   createdAt: { type: Date, default: Date.now },
+  enableChat: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 export default mongoose.model("Ticket", ticketSchema);
