@@ -1,6 +1,7 @@
 import React from "react";
 import { useState, useEffect, useMemo } from "react";
 import { io } from "socket.io-client";
+import Chats from "../components/chats.jsx";
 
 export default function ChatList() {
   const userID = JSON.parse(localStorage.getItem("user"))._id;
@@ -12,107 +13,90 @@ export default function ChatList() {
         withCredentials: true,
         query: { userID },
       }),
-    [userID]
+    []
   );
 
+  const [currentChat, setCurrentChat] = useState({});
+  const [showChat, setShowChat] = useState(false);
+  const [messageSent, setSentMessage] = useState(0);
   useEffect(() => {
     socket.on("connectedUser", () => {});
     socket.on("disconnect", () => {
       console.log("SOCKET DISCONNECTED");
     });
+    // Other events
+    socket.on("receive-messages-from-server", (transmit) => {
+      console.log(transmit, "TRANSMIT");
+
+      if (transmit) {
+        setCurrentChat(transmit);
+      } else {
+        setCurrentChat(null);
+      }
+    });
   });
 
-  const [openChat, setOpenChat] = useState({
-    sender: {
-      messages: ["HI"],
-    },
-    receiver: {
-      messages: ["Hey There"],
-    },
-  });
-
-  const [showChat, setShowChat] = useState(false);
-  if (showChat) {
-    return (
-      <>
-        <div className="w-3xs m-auto flex flex-col justify-around">
-          <div>
-            <div className="chat chat-star ">
-              <div className="chat-bubble">{openChat.receiver.messages[0]}</div>
-            </div>
-            <div className="chat chat-end">
-              <div className="chat-bubble">{openChat.sender.messages[0]}</div>
-            </div>
-          </div>
-          <input type="text" name="" id="" className="w-full h-52" />
-        </div>
-      </>
-    );
-  }
+  const [ticketsChat, setTicketsChat] = useState(null);
+  const token = localStorage.getItem("token");
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_SERVER_URL}/tickets/`, {
+      headers: { authorization: `Bearer ${token}` },
+      method: "GET",
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log(data);
+        setTicketsChat(data.tickets);
+      });
+  }, []);
 
   return (
-    <ul className="list bg-base-100 rounded-box shadow-md">
-      <li className="p-4 pb-2 text-xs opacity-60 tracking-wide">
-        Most played songs this week
-      </li>
+    <>
+      <div className="grid grid-cols-2 gap-4">
+        <ul className="list bg-base-100 rounded-box shadow-md">
+          {ticketsChat
+            ? ticketsChat.map((ticket, index) => {
+                return (
+                  <li className="list-row" key={index}>
+                    <div className="text-4xl font-thin opacity-30 tabular-nums">
+                      {index + 1}
+                    </div>
 
-      <li className="list-row">
-        <div className="text-4xl font-thin opacity-30 tabular-nums">01</div>
-        <div>
-          <img
-            className="size-10 rounded-box"
-            src="https://img.daisyui.com/images/profile/demo/1@94.webp"
+                    <div className="list-col-grow">
+                      <div>{ticket.title}</div>
+                      <div className="text-xs font-semibold opacity-60">
+                        Chat with assigned moderator
+                      </div>
+                    </div>
+                    <button
+                      className="btn btn-square btn-ghost"
+                      onClick={() => {
+                        socket.emit("retrieve-ticket-specific-messages", {
+                          ticket: ticket,
+                          receiver: userID,
+                        });
+                        setShowChat(true);
+                      }}
+                    >
+                      Chat
+                    </button>
+                  </li>
+                );
+              })
+            : ``}
+        </ul>
+        {showChat ? (
+          <Chats
+            currentChat={currentChat}
+            userID={userID}
+            socket={socket}
+            messageSent={messageSent}
+            setSentMessage={setSentMessage}
           />
-        </div>
-        <div className="list-col-grow">
-          <div>Dio Lupa</div>
-          <div className="text-xs uppercase font-semibold opacity-60">
-            Remaining Reason
-          </div>
-        </div>
-        <button
-          className="btn btn-square btn-ghost"
-          onClick={() => {
-            setShowChat(true);
-          }}
-        >
-          Chat
-        </button>
-      </li>
-
-      <li className="list-row">
-        <div className="text-4xl font-thin opacity-30 tabular-nums">02</div>
-        <div>
-          <img
-            className="size-10 rounded-box"
-            src="https://img.daisyui.com/images/profile/demo/4@94.webp"
-          />
-        </div>
-        <div className="list-col-grow">
-          <div>Ellie Beilish</div>
-          <div className="text-xs uppercase font-semibold opacity-60">
-            Bears of a fever
-          </div>
-        </div>
-        <button className="btn btn-square btn-ghost">Chat</button>
-      </li>
-
-      <li className="list-row">
-        <div className="text-4xl font-thin opacity-30 tabular-nums">03</div>
-        <div>
-          <img
-            className="size-10 rounded-box"
-            src="https://img.daisyui.com/images/profile/demo/3@94.webp"
-          />
-        </div>
-        <div className="list-col-grow">
-          <div>Sabrino Gardener</div>
-          <div className="text-xs uppercase font-semibold opacity-60">
-            Cappuccino
-          </div>
-        </div>
-        <button className="btn btn-square btn-ghost">Chat</button>
-      </li>
-    </ul>
+        ) : (
+          <div className="flex justify-center bg-neutral-800">Open Chat</div>
+        )}
+      </div>
+    </>
   );
 }

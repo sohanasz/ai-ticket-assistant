@@ -10,6 +10,8 @@ import ticketRoutes from "./routes/tickets.routes.js";
 import { inngest } from "./inngest/client.js";
 import { onUserSignup } from "./inngest/functions/onSignUp.js";
 import { onTicketCreated } from "./inngest/functions/onTicketCreation.js";
+import Chat from "./models/chat.js";
+import Ticket from "./models/ticket.js";
 
 import dotenv from "dotenv";
 dotenv.config();
@@ -54,20 +56,57 @@ io.on("connection", (socket) => {
     const prevSocketId = userSocketMap.get(userId);
     const prevSocket = io.sockets.sockets.get(prevSocketId);
     if (prevSocket) prevSocket.disconnect(true);
-
     userSocketMap.set(userId, socket.id);
   }
 
-  // Explicit disconnection handling
+  // Explicit disconnection handling like reloading or network glitch
   socket.on("disconnect", () => {
     if (userSocketMap.get(userId) === socket.id) {
       userSocketMap.delete(userId);
     }
   });
 
-  socket.on("connectedUserMessage", ({ message }) => {
-    console.log("New Message", message);
+  socket.on("retrieve-ticket-specific-messages", async ({ ticket }) => {
+    const chats = await Chat.find({
+      ticketId: new mongoose.Types.ObjectId(ticket._id),
+    }).sort({ createdAt: 1 });
+
+    // const enabledChat = await Ticket.findById(ticket._id).select("enableChat");
+    const enabledChat = ticket.enableChat;
+    socket.emit("receive-messages-from-server", { chats, enabledChat, ticket });
   });
+
+  socket.on(
+    "send-message-to-user",
+    async ({ message, toUserId, fromUserId, ticket }) => {
+      await Chat.insertOne({
+        ticketId: ticket,
+        message: message,
+        sender: fromUserId,
+        receiver: toUserId,
+      });
+    }
+  );
+});
+
+const changeStream = Chat.watch();
+changeStream.on("change", (change) => {
+  if (change.operationType === "insert") {
+    const document = change.fullDocument;
+    const chatsReceiverSocketId = userSocketMap.get(
+      document.receiver.toString()
+    );
+    console.log("DEBUG CHANGE STREAM", chatsReceiverSocketId, document);
+
+    if (chatsReceiverSocketId) {
+      io.to(chatsReceiverSocketId).emit("retrieve-ticket-specific-messages", [
+        document,
+      ]);
+      console.log(`Message sent via WS to ${document.receiverId}`);
+    } else {
+      console.log(`${document.receiver} user is offline`);
+    }
+  }
 });
 
 mongoose

@@ -37,7 +37,6 @@ export const createTicket = async (req, res) => {
 export const getTickets = async (req, res) => {
   try {
     const user = req.user;
-    console.log("TEST ROUTE", user);
     let tickets = [];
     if (user.role !== "user") {
       tickets = await Ticket.find({})
@@ -45,10 +44,9 @@ export const getTickets = async (req, res) => {
         .sort({ createdAt: -1 });
     } else {
       tickets = await Ticket.find({ createdBy: user._id })
-        .select("title description status createdAt")
+        .select("title description status createdAt assignedTo enableChat")
         .sort({ createdAt: -1 });
     }
-    console.log(tickets, "TIK TIK");
 
     return res.status(200).json({ tickets });
   } catch (error) {
